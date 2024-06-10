@@ -14,23 +14,37 @@ Widget::Widget(QWidget *parent)
        openButton = new QPushButton("Open", this);
        playButton = new QPushButton("Play", this);
 
+
+       positionSlider = new QSlider(Qt::Horizontal, this);
+       positionSlider->setRange(0, 100); // 将范围设置为 0 到 100，以简化处理
+
        QVBoxLayout *mainLayout = new QVBoxLayout;
        QHBoxLayout *buttonLayout = new QHBoxLayout;
        buttonLayout->addWidget(openButton);
        buttonLayout->addWidget(playButton);
 
        mainLayout->addWidget(videoLabel);
+        mainLayout->addWidget(positionSlider);
        mainLayout->addLayout(buttonLayout);
        setLayout(mainLayout);
 
        connect(openButton, &QPushButton::clicked, this, &Widget::openFile);
        connect(playButton, &QPushButton::clicked, this, &Widget::playVideo);
+        connect(positionSlider, &QSlider::sliderMoved, this, &Widget::seekVideo);
 
        timer = new QTimer(this);
        connect(timer, &QTimer::timeout, this, &Widget::updateFrame);
 
        frame = av_frame_alloc();
        packet = av_packet_alloc();
+}
+
+void Widget::seekVideo(int position) {
+    if (!formatContext || videoStreamIndex == -1) return;
+
+    int64_t seekTarget = static_cast<int64_t>((position / 100.0) * formatContext->duration);
+    av_seek_frame(formatContext, videoStreamIndex, seekTarget, AVSEEK_FLAG_BACKWARD);
+    avcodec_flush_buffers(codecContext);
 }
 
 void Widget::openFile()

@@ -10,6 +10,7 @@
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QSlider>
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -29,6 +30,7 @@ private slots:
     void openFile();
     void playVideo();
     void updateFrame();
+    void seekVideo(int position);
 
 private:
     void decodeVideo();
@@ -46,6 +48,7 @@ private:
     QPushButton *playButton = nullptr;
     QString filePath;
     bool isPlaying = false;
+    QSlider *positionSlider = nullptr;
 };
 
 #endif // WIDGET_H
