@@ -45,6 +45,7 @@ private:
     QPushButton *openButton = nullptr;
     QPushButton *playButton = nullptr;
     QString filePath;
+    bool isPlaying = false;
 };
 
 #endif // WIDGET_H

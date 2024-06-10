@@ -95,7 +95,16 @@ void Widget::playVideo()
         return;
     }
 
-    timer->start(30); // Roughly 30 frames per second
+    if(isPlaying)
+    {
+        timer->stop();
+        playButton->setText("play");
+    }else {
+        timer->start(30); // Roughly 30 frames per second
+        playButton->setText("pause");
+    }
+
+    isPlaying = !isPlaying;
 }
 void Widget::updateFrame()
 {
@@ -118,6 +127,9 @@ void Widget::decodeVideo()
             }
         }
         av_packet_unref(packet);
+    }else {
+        av_seek_frame(formatContext, videoStreamIndex, 0, AVSEEK_FLAG_BACKWARD); // 回到视频开始位置
+        avcodec_flush_buffers(codecContext);
     }
 }
 
