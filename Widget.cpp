@@ -1,4 +1,5 @@
 #include "Widget.h"
+#include <QtDebug>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -30,7 +31,7 @@ Widget::Widget(QWidget *parent)
 
        connect(openButton, &QPushButton::clicked, this, &Widget::openFile);
        connect(playButton, &QPushButton::clicked, this, &Widget::playVideo);
-        connect(positionSlider, &QSlider::sliderMoved, this, &Widget::seekVideo);
+       connect(positionSlider, &QSlider::sliderMoved, this, &Widget::seekVideo);
 
        timer = new QTimer(this);
        connect(timer, &QTimer::timeout, this, &Widget::updateFrame);
@@ -43,6 +44,13 @@ void Widget::seekVideo(int position) {
     if (!formatContext || videoStreamIndex == -1) return;
 
     int64_t seekTarget = static_cast<int64_t>((position / 100.0) * formatContext->duration);
+    qDebug() << "formatContext->duration is  " << formatContext->duration / AV_TIME_BASE;
+    qDebug() << "formatContext->start_time is  " << formatContext->start_time / AV_TIME_BASE;
+     qDebug() << "formatContext->start_time is  " << formatContext->url;
+     qDebug() << "av_q2d(formatContext->streams[videoStreamIndex]->time_base) = " << av_q2d(formatContext->streams[videoStreamIndex]->time_base);
+     qDebug() << "av_q2d(formatContext->streams[videoStreamIndex]->avg_frame_rate) = " << av_q2d(formatContext->streams[videoStreamIndex]->avg_frame_rate);
+     qDebug() << "av_q2d(formatContext->streams[videoStreamIndex]->r_frame_rate) = " << av_q2d(formatContext->streams[videoStreamIndex]->r_frame_rate);
+             qDebug() << "av_q2d(formatContext->streams[videoStreamIndex]->nb_frames) = " << formatContext->streams[videoStreamIndex]->nb_frames;
     av_seek_frame(formatContext, videoStreamIndex, seekTarget, AVSEEK_FLAG_BACKWARD);
     avcodec_flush_buffers(codecContext);
 }
@@ -128,8 +136,13 @@ void Widget::updateFrame()
 
 void Widget::decodeVideo()
 {
+    static int count  =0;
     if (av_read_frame(formatContext, packet) >= 0) {
+        qDebug() << "count = " << count++;
         if (packet->stream_index == videoStreamIndex) {
+//            qDebug() << "pts = " << packet->pts * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
+//            qDebug() << "dts = " << packet->dts * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
+//            qDebug() << "duration = " << packet->duration * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
             avcodec_send_packet(codecContext, packet);
             if (avcodec_receive_frame(codecContext, frame) == 0) {
                 QImage image(codecContext->width, codecContext->height, QImage::Format_RGB888);
@@ -142,6 +155,7 @@ void Widget::decodeVideo()
         }
         av_packet_unref(packet);
     }else {
+        count = 0;
         av_seek_frame(formatContext, videoStreamIndex, 0, AVSEEK_FLAG_BACKWARD); // 回到视频开始位置
         avcodec_flush_buffers(codecContext);
     }
