@@ -49,6 +49,9 @@ private:
     QString filePath;
     bool isPlaying = false;
     QSlider *positionSlider = nullptr;
+    int m_fps = 0;
+    int64_t m_frames = 0;
+    int64_t m_cur_frame = 0;
 };
 
 #endif // WIDGET_H

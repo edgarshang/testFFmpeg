@@ -17,7 +17,9 @@ Widget::Widget(QWidget *parent)
 
 
        positionSlider = new QSlider(Qt::Horizontal, this);
+       positionSlider->setEnabled(true);
        positionSlider->setRange(0, 100); // 将范围设置为 0 到 100，以简化处理
+       positionSlider->setValue(0);
 
        QVBoxLayout *mainLayout = new QVBoxLayout;
        QHBoxLayout *buttonLayout = new QHBoxLayout;
@@ -35,6 +37,8 @@ Widget::Widget(QWidget *parent)
 
        timer = new QTimer(this);
        connect(timer, &QTimer::timeout, this, &Widget::updateFrame);
+
+
 
        frame = av_frame_alloc();
        packet = av_packet_alloc();
@@ -76,6 +80,11 @@ void Widget::openFile()
           break;
       }
     }
+
+    m_fps = 1000 / static_cast<uint8_t>(av_q2d(formatContext->streams[videoStreamIndex]->r_frame_rate));
+    m_frames = formatContext->streams[videoStreamIndex]->nb_frames;
+
+    timer->setInterval((m_fps == 0 ? 30 : m_fps));
 
     if (videoStreamIndex == -1) {
         QMessageBox::warning(this, "Error", "No video stream found.");
@@ -122,7 +131,7 @@ void Widget::playVideo()
         timer->stop();
         playButton->setText("play");
     }else {
-        timer->start(30); // Roughly 30 frames per second
+        timer->start(); // Roughly 30 frames per second
         playButton->setText("pause");
     }
 
@@ -130,6 +139,8 @@ void Widget::playVideo()
 }
 void Widget::updateFrame()
 {
+//    qDebug() << "m_cur_frame / m_frames" << m_cur_frame / m_frames;
+    positionSlider->setValue(100*(m_cur_frame / static_cast<double>(m_frames) ));
     decodeVideo();
 }
 
@@ -139,6 +150,7 @@ void Widget::decodeVideo()
     static int count  =0;
     if (av_read_frame(formatContext, packet) >= 0) {
         qDebug() << "count = " << count++;
+        m_cur_frame++;
         if (packet->stream_index == videoStreamIndex) {
 //            qDebug() << "pts = " << packet->pts * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
 //            qDebug() << "dts = " << packet->dts * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
@@ -156,6 +168,7 @@ void Widget::decodeVideo()
         av_packet_unref(packet);
     }else {
         count = 0;
+        m_cur_frame = 0;
         av_seek_frame(formatContext, videoStreamIndex, 0, AVSEEK_FLAG_BACKWARD); // 回到视频开始位置
         avcodec_flush_buffers(codecContext);
     }
