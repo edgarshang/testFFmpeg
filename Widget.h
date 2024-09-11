@@ -11,6 +11,8 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSlider>
+#include <QMutex>
+#include <saveAlarmVideo.h>
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -27,10 +29,14 @@ public:
     ~Widget();
 
 private slots:
+    void saveVideo();
     void openFile();
     void playVideo();
     void updateFrame();
     void seekVideo(int position);
+
+protected:
+    void paintEvent(QPaintEvent *event) override;
 
 private:
     void decodeVideo();
@@ -46,12 +52,18 @@ private:
     QLabel *videoLabel = nullptr;
     QPushButton *openButton = nullptr;
     QPushButton *playButton = nullptr;
+    QPushButton *saveBtn = nullptr;
     QString filePath;
     bool isPlaying = false;
     QSlider *positionSlider = nullptr;
     int m_fps = 0;
     int64_t m_frames = 0;
     int64_t m_cur_frame = 0;
+
+    QImage m_image;
+    QMutex m_imageMutex;
+
+    saveAlarmVideo *m_videosave;
 };
 
 #endif // WIDGET_H

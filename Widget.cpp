@@ -1,12 +1,13 @@
 #include "Widget.h"
 #include <QtDebug>
+#include <QPainter>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
 {
 //    av_format_network();
 //    avformat_network_init
-   avformat_network_init();
+      avformat_network_init();
 
 
        videoLabel = new QLabel(this);
@@ -14,6 +15,7 @@ Widget::Widget(QWidget *parent)
 
        openButton = new QPushButton("Open", this);
        playButton = new QPushButton("Play", this);
+       saveBtn = new QPushButton("Save", this);
 
 
        positionSlider = new QSlider(Qt::Horizontal, this);
@@ -25,15 +27,19 @@ Widget::Widget(QWidget *parent)
        QHBoxLayout *buttonLayout = new QHBoxLayout;
        buttonLayout->addWidget(openButton);
        buttonLayout->addWidget(playButton);
+       buttonLayout->addWidget(saveBtn);
 
        mainLayout->addWidget(videoLabel);
-        mainLayout->addWidget(positionSlider);
+       mainLayout->addWidget(positionSlider);
        mainLayout->addLayout(buttonLayout);
        setLayout(mainLayout);
 
        connect(openButton, &QPushButton::clicked, this, &Widget::openFile);
        connect(playButton, &QPushButton::clicked, this, &Widget::playVideo);
+       connect(saveBtn, &QPushButton::clicked, this, &Widget::saveVideo);
        connect(positionSlider, &QSlider::sliderMoved, this, &Widget::seekVideo);
+
+//       init_packet_buffer(&m_packetBuffer);
 
        timer = new QTimer(this);
        connect(timer, &QTimer::timeout, this, &Widget::updateFrame);
@@ -42,7 +48,11 @@ Widget::Widget(QWidget *parent)
 
        frame = av_frame_alloc();
        packet = av_packet_alloc();
+
+       m_videosave = new saveAlarmVideo();
 }
+
+
 
 void Widget::seekVideo(int position) {
     if (!formatContext || videoStreamIndex == -1) return;
@@ -57,6 +67,17 @@ void Widget::seekVideo(int position) {
              qDebug() << "av_q2d(formatContext->streams[videoStreamIndex]->nb_frames) = " << formatContext->streams[videoStreamIndex]->nb_frames;
     av_seek_frame(formatContext, videoStreamIndex, seekTarget, AVSEEK_FLAG_BACKWARD);
     avcodec_flush_buffers(codecContext);
+}
+
+void Widget::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event)
+    QPainter painter(this);
+
+        QMutexLocker locker(&m_imageMutex);
+        if (!m_image.isNull()) {
+            painter.drawImage(rect(), m_image);
+        }
 }
 
 void Widget::openFile()
@@ -119,6 +140,11 @@ void Widget::openFile()
 
 
 }
+
+void Widget::saveVideo()
+{
+    m_videosave->saveVideo("./testSaveVideo.mp4", formatContext, videoStreamIndex);
+}
 void Widget::playVideo()
 {
     if (!formatContext) {
@@ -149,10 +175,12 @@ void Widget::decodeVideo()
 {
     static int count  =0;
     if (av_read_frame(formatContext, packet) >= 0) {
-        qDebug() << "count = " << count++;
+//        qDebug() << "count = " << count++;
         m_cur_frame++;
-        if (packet->stream_index == videoStreamIndex) {
-//            qDebug() << "pts = " << packet->pts * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
+        m_videosave->add_packet(formatContext, videoStreamIndex, packet);
+        if (packet->stream_index == videoStreamIndex)
+        {
+            qDebug() << "pts = " << packet->pts * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
 //            qDebug() << "dts = " << packet->dts * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
 //            qDebug() << "duration = " << packet->duration * av_q2d(formatContext->streams[videoStreamIndex]->time_base);
             avcodec_send_packet(codecContext, packet);
@@ -162,7 +190,11 @@ void Widget::decodeVideo()
                 int linesize[AV_NUM_DATA_POINTERS] = { image.bytesPerLine(), 0 };
 
                 sws_scale(swsContext, frame->data, frame->linesize, 0, codecContext->height, data, linesize);
-                videoLabel->setPixmap(QPixmap::fromImage(image));
+//                videoLabel->setPixmap(QPixmap::fromImage(image));
+                QMutexLocker locker(&m_imageMutex);
+                  m_image = image;
+
+                 update();
             }
         }
         av_packet_unref(packet);

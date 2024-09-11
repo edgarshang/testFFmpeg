@@ -25,11 +25,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 CONFIG += c++11
 
 SOURCES += \
+        VideoFFmpeg.cpp \
         main.cpp \
-        Widget.cpp
+        Widget.cpp \
+        saveAlarmVideo.cpp
 
 HEADERS += \
-        Widget.h
+        VideoFFmpeg.h \
+        Widget.h \
+        saveAlarmVideo.h
 
 INCLUDEPATH += $$quote(D:\appSoftware\ffmpeg-6.1-full_build-shared\include)
 
